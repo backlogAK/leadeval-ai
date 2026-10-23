@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeadEval AI - Conversational Leadership Assessment</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            900: '#0c4a6e',
+                        },
+                        accent: {
+                            emerald: '#10b981',
+                            violet: '#8b5cf6',
+                            amber: '#f59e0b',
+                            rose: '#f43f5e',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(51, 65, 85, 0.8);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(71, 85, 105, 1);
+        }
+
+        /* Pulse audio animation for simulated mic */
+        @keyframes audioPulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.15); opacity: 0.4; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+        .mic-active {
+            animation: audioPulse 1.2s infinite ease-in-out;
+        }
+
+        /* Glassmorphism elements */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .light .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        /* Print styles for export report */
+        @media print {
+            body { background: white !important; color: black !important; }
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            .glass-panel { border: 1px solid #ccc !important; background: white !important; box-shadow: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-brand-500 selection:text-white">
+
+    <!-- Top Navigation Header -->
+    <header class="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-900/90 backdrop-blur-md px-4 lg:px-8 py-3 transition-colors duration-200">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            
+            <!-- App Logo & Title -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 via-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-brand-500/20">
+                    <i data-lucide="brain-circuit" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-lg tracking-tight text-white dark:text-white light:text-slate-900">LeadEval <span class="text-brand-400">AI</span></span>
+                        <span class="px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase rounded-full bg-brand-500/10 text-brand-400 border border-brand-500/20">v2.5 Pro</span>
+                    </div>
+                    <p class="text-xs text-slate-400 hidden sm:block">Conversational Leadership Assessment Engine</p>
+                </div>
+            </div>
+
+            <!-- Scenario Navigation & Progress Bar -->
+            <div class="hidden md:flex items-center gap-4 bg-slate-800/50 p-1.5 rounded-xl border border-slate-700/50">
+                <div class="flex items-center gap-1.5 px-3">
+                    <i data-lucide="layers" class="w-4 h-4 text-brand-400"></i>
+                    <span class="text-xs font-medium text-slate-300">Scenario Progress</span>
+                    <span id="nav-progress-text" class="text-xs font-bold text-brand-400 ml-1">1 / 5</span>
+                </div>
+                <div class="w-32 bg-slate-700/60 rounded-full h-2 overflow-hidden">
+                    <div id="nav-progress-bar" class="bg-gradient-to-r from-brand-500 to-indigo-500 h-full w-1/5 transition-all duration-500"></div>
+                </div>
+            </div>
+
+            <!-- Actions Right -->
+            <div class="flex items-center gap-2 sm:gap-3">
+                
+                <!-- Overall Score Badge -->
+                <div class="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700">
+                    <i data-lucide="award" class="w-4 h-4 text-amber-400"></i>
+                    <div class="text-left">
+                        <div class="text-[10px] uppercase tracking-wider text-slate-400 font-medium leading-none">Score</div>
+                        <div id="overall-score-badge" class="text-sm font-bold text-emerald-400 leading-tight">0 / 100</div>
+                    </div>
+                </div>
+
+                <!-- API Key Config Button -->
+                <button id="btn-api-key" title="Configure Gemini API Key" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700">
+                    <i data-lucide="key" class="w-4 h-4"></i>
+                </button>
+
+                <!-- Light/Dark Mode Toggle -->
+                <button id="btn-theme-toggle" title="Toggle Light/Dark Theme" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700">
+                    <i data-lucide="sun" id="theme-icon-sun" class="w-4 h-4 hidden"></i>
+                    <i data-lucide="moon" id="theme-icon-moon" class="w-4 h-4"></i>
+                </button>
+
+                <!-- Export Report Button -->
+                <button id="btn-export-report" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-medium text-xs sm:text-sm shadow-md shadow-brand-600/20 transition-all">
+                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Export Report</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- LEFT COLUMN: Conversational Leadership Simulator (col-span-7) -->
+        <section class="lg:col-span-7 flex flex-col gap-4 h-[calc(100vh-100px)] min-h-[600px]">
+
+            <!-- Scenario Selection Bar & Context Header -->
+            <div class="glass-panel p-4 rounded-2xl flex flex-col gap-3">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div class="flex items-center gap-2">
+                        <span id="scenario-number-badge" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                            Scenario 1 of 5
+                        </span>
+                        <span id="scenario-difficulty-badge" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                            High Stake
+                        </span>
+                    </div>
+
+                    <!-- Quick Scenario Switcher Dropdown -->
+                    <div class="flex items-center gap-2">
+                        <label for="scenario-select" class="text-xs text-slate-400 font-medium hidden sm:inline">Scenario:</label>
+                        <select id="scenario-select" class="bg-slate-800 text-slate-200 text-xs font-medium rounded-lg px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer">
+                            <option value="0">1. Interpersonal Conflict</option>
+                            <option value="1">2. Underperforming Star Player</option>
+                            <option value="2">3. Production Outage Crisis</option>
+                            <option value="3">4. Restructuring & Anxiety</option>
+                            <option value="4">5. Ethical Dilemma</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Scenario Title & Business Context -->
+                <div>
+                    <h1 id="scenario-title" class="text-lg sm:text-xl font-bold text-white tracking-tight">Interpersonal Conflict: Tech Stack Architectural Feud</h1>
+                    <p id="scenario-context" class="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
+                        Two senior engineers are openly shouting during a team sync over whether to rewrite the core microservice before Friday's crucial enterprise launch. The team's morale is plummeting, and a missed deadline risks a $2M client contract.
+                    </p>
+                </div>
+
+                <!-- Stakeholders List -->
+                <div class="flex items-center gap-2 flex-wrap pt-1 border-t border-slate-800/80">
+                    <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Key Stakeholders:</span>
+                    <div id="stakeholders-container" class="flex items-center gap-1.5 flex-wrap">
+                        <!-- Dynamically filled -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Stream Window -->
+            <div id="chat-stream-container" class="flex-1 glass-panel rounded-2xl p-4 overflow-y-auto flex flex-col gap-4 relative">
+                <!-- Welcome Prompt / Watermark if empty -->
+                <div id="chat-stream" class="flex flex-col gap-4">
+                    <!-- Dynamic chat messages go here -->
+                </div>
+
+                <!-- AI Thinking Indicator -->
+                <div id="ai-loading-indicator" class="hidden flex items-center gap-3 p-3 rounded-xl bg-slate-800/60 border border-slate-700/50 w-fit">
+                    <div class="flex space-x-1.5">
+                        <div class="w-2 h-2 bg-brand-400 rounded-full animate-bounce"></div>
+                        <div class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                        <div class="w-2 h-2 bg-violet-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                    </div>
+                    <span class="text-xs text-slate-300 font-medium">LeadEval AI analyzing leadership dynamics & scoring response...</span>
+                </div>
+            </div>
+
+            <!-- Chat Input Area -->
+            <div class="glass-panel p-3.5 rounded-2xl flex flex-col gap-2">
+                
+                <!-- Quick Response Recommendation Chips -->
+                <div class="flex items-center justify-between text-xs text-slate-400 font-medium px-1">
+                    <span class="flex items-center gap-1 text-[11px]">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>
+                        <span>Suggested Executive Framing:</span>
+                    </span>
+                    <span id="char-counter" class="text-[11px] text-slate-500">0 / 1000</span>
+                </div>
+
+                <div id="suggestion-chips" class="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
+                    <!-- Dynamic Suggestion Chips -->
+                </div>
+
+                <!-- Input Textarea with Mic Dictation Simulation and Send Button -->
+                <div class="relative flex items-end gap-2 bg-slate-900/90 rounded-xl p-2 border border-slate-700 focus-within:border-brand-500 transition-colors">
+                    <textarea id="user-input" rows="2" placeholder="Type your strategic response as the team manager..." class="w-full bg-transparent text-slate-100 text-xs sm:text-sm placeholder-slate-500 resize-none focus:outline-none p-1.5"></textarea>
+                    
+                    <div class="flex items-center gap-1.5 pb-1 pr-1">
+                        <!-- Dictation Simulation Button -->
+                        <button id="btn-dictation" type="button" title="Simulate Voice Dictation" class="p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors">
+                            <i data-lucide="mic" id="mic-icon" class="w-4 h-4"></i>
+                        </button>
+
+                        <!-- Send Button -->
+                        <button id="btn-send" type="button" class="p-2.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/30 disabled:opacity-50 transition-all">
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- RIGHT COLUMN: Real-Time Analytics Dashboard (col-span-5) -->
+        <section class="lg:col-span-5 flex flex-col gap-4 overflow-y-auto max-h-[calc(100vh-100px)]">
+
+            <!-- Archetype & Overall Rating Card -->
+            <div class="glass-panel p-5 rounded-2xl flex flex-col gap-3 relative overflow-hidden">
+                <div class="absolute -right-8 -top-8 w-32 h-32 bg-brand-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                
+                <div class="flex items-center justify-between">
+                    <div>
+                        <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Leadership Archetype</span>
+                        <h2 id="archetype-title" class="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-indigo-300">
+                            Evaluating Style...
+                        </h2>
+                    </div>
+                    <div id="archetype-icon-box" class="p-3 rounded-xl bg-slate-800/80 border border-slate-700 text-brand-400">
+                        <i data-lucide="compass" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <p id="archetype-desc" class="text-xs text-slate-300 leading-relaxed">
+                    Respond to scenarios to compute your core management profile based on Empathy, Decisiveness, Clarity, Strategy, and EQ.
+                </p>
+
+                <!-- Metric Summary Pills -->
+                <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800">
+                    <div class="bg-slate-800/60 p-2 rounded-xl text-center border border-slate-700/50">
+                        <div class="text-[10px] text-slate-400 font-medium">Quality Index</div>
+                        <div id="metric-rqi" class="text-sm font-bold text-brand-400">0%</div>
+                    </div>
+                    <div class="bg-slate-800/60 p-2 rounded-xl text-center border border-slate-700/50">
+                        <div class="text-[10px] text-slate-400 font-medium">Turn Count</div>
+                        <div id="metric-turns" class="text-sm font-bold text-slate-200">0</div>
+                    </div>
+                    <div class="bg-slate-800/60 p-2 rounded-xl text-center border border-slate-700/50">
+                        <div class="text-[10px] text-slate-400 font-medium">Completed</div>
+                        <div id="metric-completion" class="text-sm font-bold text-emerald-400">0 / 5</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Core Competencies Radar Visual -->
+            <div class="glass-panel p-4 rounded-2xl flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="radar" class="w-4 h-4 text-brand-400"></i>
+                        Competency Radar Matrix
+                    </h3>
+                    <span class="text-[10px] text-slate-400">Live 5-Vector Evaluation</span>
+                </div>
+
+                <div class="relative w-full h-52 flex items-center justify-center">
+                    <canvas id="competencyRadarChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Detailed Competency Progress Bars -->
+            <div class="glass-panel p-4 rounded-2xl flex flex-col gap-3">
+                <h3 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                    <i data-lucide="bar-chart-3" class="w-4 h-4 text-indigo-400"></i>
+                    Competency Breakdown
+                </h3>
+
+                <div class="space-y-2.5 text-xs">
+                    <!-- Empathy & Compassion -->
+                    <div>
+                        <div class="flex justify-between font-medium text-slate-300 mb-1">
+                            <span class="flex items-center gap-1"><i data-lucide="heart" class="w-3.5 h-3.5 text-rose-400"></i> Empathy & Compassion</span>
+                            <span id="score-empathy-val" class="font-bold text-rose-400">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                            <div id="score-empathy-bar" class="bg-rose-500 h-full w-0 transition-all duration-500"></div>
+                        </div>
+                    </div>
+
+                    <!-- Decisiveness -->
+                    <div>
+                        <div class="flex justify-between font-medium text-slate-300 mb-1">
+                            <span class="flex items-center gap-1"><i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i> Decisiveness</span>
+                            <span id="score-decisiveness-val" class="font-bold text-amber-400">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                            <div id="score-decisiveness-bar" class="bg-amber-500 h-full w-0 transition-all duration-500"></div>
+                        </div>
+                    </div>
+
+                    <!-- Communication Clarity -->
+                    <div>
+                        <div class="flex justify-between font-medium text-slate-300 mb-1">
+                            <span class="flex items-center gap-1"><i data-lucide="message-square" class="w-3.5 h-3.5 text-brand-400"></i> Communication Clarity</span>
+                            <span id="score-clarity-val" class="font-bold text-brand-400">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                            <div id="score-clarity-bar" class="bg-brand-500 h-full w-0 transition-all duration-500"></div>
+                        </div>
+                    </div>
+
+                    <!-- Strategic Thinking -->
+                    <div>
+                        <div class="flex justify-between font-medium text-slate-300 mb-1">
+                            <span class="flex items-center gap-1"><i data-lucide="target" class="w-3.5 h-3.5 text-indigo-400"></i> Strategic Thinking</span>
+                            <span id="score-strategic-val" class="font-bold text-indigo-400">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                            <div id="score-strategic-bar" class="bg-indigo-500 h-full w-0 transition-all duration-500"></div>
+                        </div>
+                    </div>
+
+                    <!-- Emotional Intelligence -->
+                    <div>
+                        <div class="flex justify-between font-medium text-slate-300 mb-1">
+                            <span class="flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i> Emotional Intelligence</span>
+                            <span id="score-eq-val" class="font-bold text-emerald-400">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                            <div id="score-eq-bar" class="bg-emerald-500 h-full w-0 transition-all duration-500"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Real-Time AI Feedback & Advice Card -->
+            <div class="glass-panel p-4 rounded-2xl flex flex-col gap-3">
+                <h3 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                    <i data-lucide="lightbulb" class="w-4 h-4 text-amber-400"></i>
+                    Latest Executive Feedback & Growth Opportunities
+                </h3>
+
+                <div class="space-y-3 text-xs">
+                    <!-- Key Strengths -->
+                    <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+                        <div class="font-semibold text-emerald-400 mb-1 flex items-center gap-1">
+                            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Key Strengths
+                        </div>
+                        <ul id="feedback-strengths" class="list-disc list-inside text-slate-300 space-y-1">
+                            <li>Provide a response in the chat to generate individualized strengths feedback.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Opportunities for Growth -->
+                    <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+                        <div class="font-semibold text-amber-400 mb-1 flex items-center gap-1">
+                            <i data-lucide="trending-up" class="w-3.5 h-3.5"></i> Development Opportunities
+                        </div>
+                        <ul id="feedback-growth" class="list-disc list-inside text-slate-300 space-y-1">
+                            <li>Awaiting strategic input...</li>
+                        </ul>
+                    </div>
+
+                    <!-- Instant Actionable Coaching -->
+                    <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+                        <div class="font-semibold text-brand-400 mb-1 flex items-center gap-1">
+                            <i data-lucide="compass" class="w-3.5 h-3.5"></i> Recommended Action Step
+                        </div>
+                        <p id="feedback-advice" class="text-slate-300 italic">
+                            "A balanced executive response addresses psychological safety while setting uncompromising standards for delivery."
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- MODAL 1: API Key Modal -->
+    <div id="modal-api-key" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel p-6 rounded-2xl max-w-md w-full border border-slate-700 flex flex-col gap-4 shadow-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i data-lucide="key" class="w-5 h-5 text-brand-400"></i>
+                    Configure Gemini API Key
+                </h3>
+                <button id="btn-close-api-modal" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+                Provide your custom Google Gemini API Key to enable cloud LLM scoring (<code class="text-brand-300 bg-slate-800 px-1 py-0.5 rounded">gemini-3-flash-preview</code>). If left empty, LeadEval AI automatically runs on its integrated smart local NLP heuristic evaluation engine!
+            </p>
+            <div>
+                <label for="input-api-key" class="text-xs font-medium text-slate-300 block mb-1">Gemini API Key:</label>
+                <input id="input-api-key" type="password" placeholder="AIzaSy..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-500" />
+            </div>
+            <div class="flex items-center justify-end gap-2 pt-2">
+                <button id="btn-save-api-key" class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-medium text-xs transition-colors">
+                    Save Key
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: Full Assessment Executive Summary Report -->
+    <div id="modal-report" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden overflow-y-auto">
+        <div class="glass-panel p-6 sm:p-8 rounded-2xl max-w-3xl w-full border border-slate-700 flex flex-col gap-6 my-8 shadow-2xl relative">
+            
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4 no-print">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="award" class="w-6 h-6 text-brand-400"></i>
+                    <h2 class="text-lg font-bold text-white">LeadEval AI Executive Assessment Summary</h2>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="btn-print-report" class="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5">
+                        <i data-lucide="printer" class="w-4 h-4"></i> Print / Save PDF
+                    </button>
+                    <button id="btn-close-report" class="p-1.5 text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+            </div>
+
+            <!-- Report Printable Area -->
+            <div id="printable-report-area" class="space-y-6 text-slate-200">
+                
+                <!-- Report Header -->
+                <div class="flex items-center justify-between flex-wrap gap-4 border-b border-slate-800/80 pb-4">
+                    <div>
+                        <h1 class="text-2xl font-bold text-white tracking-tight">Executive Leadership Assessment Report</h1>
+                        <p class="text-xs text-slate-400 mt-1">Generated by LeadEval AI Diagnostic Engine • <span id="report-date">Oct 2026</span></p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-[10px] text-slate-400 uppercase tracking-wider">Overall Score</div>
+                        <div id="report-overall-score" class="text-3xl font-black text-emerald-400">0 / 100</div>
+                    </div>
+                </div>
+
+                <!-- Archetype & Evaluation Summary -->
+                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700/60 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Primary Leadership Archetype</span>
+                        <h3 id="report-archetype-title" class="text-lg font-bold text-brand-400 mt-0.5">Empathetic Catalyst</h3>
+                        <p id="report-archetype-desc" class="text-xs text-slate-300 mt-1 leading-relaxed">
+                            Demonstrates exceptional balance between strategic urgency and psychological safety.
+                        </p>
+                    </div>
+                    <div class="space-y-2 text-xs">
+                        <div class="flex justify-between border-b border-slate-700/50 pb-1">
+                            <span class="text-slate-400">Scenarios Attempted:</span>
+                            <span id="report-scenarios-completed" class="font-bold text-slate-200">0 / 5</span>
+                        </div>
+                        <div class="flex justify-between border-b border-slate-700/50 pb-1">
+                            <span class="text-slate-400">Response Quality Index (RQI):</span>
+                            <span id="report-rqi" class="font-bold text-brand-400">0%</span>
+                        </div>
+                        <div class="flex justify-between border-b border-slate-700/50 pb-1">
+                            <span class="text-slate-400">Total Interactions (Turns):</span>
+                            <span id="report-turns" class="font-bold text-slate-200">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Competency Breakdown Table -->
+                <div>
+                    <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Core Competency Diagnostic Scores</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
+                        <div class="p-2.5 bg-slate-900 rounded-xl border border-slate-800">
+                            <div class="text-slate-400 text-[10px] mb-1">Empathy</div>
+                            <div id="rep-score-empathy" class="text-base font-bold text-rose-400">0%</div>
+                        </div>
+                        <div class="p-2.5 bg-slate-900 rounded-xl border border-slate-800">
+                            <div class="text-slate-400 text-[10px] mb-1">Decisiveness</div>
+                            <div id="rep-score-decisiveness" class="text-base font-bold text-amber-400">0%</div>
+                        </div>
+                        <div class="p-2.5 bg-slate-900 rounded-xl border border-slate-800">
+                            <div class="text-slate-400 text-[10px] mb-1">Clarity</div>
+                            <div id="rep-score-clarity" class="text-base font-bold text-brand-400">0%</div>
+                        </div>
+                        <div class="p-2.5 bg-slate-900 rounded-xl border border-slate-800">
+                            <div class="text-slate-400 text-[10px] mb-1">Strategic</div>
+                            <div id="rep-score-strategic" class="text-base font-bold text-indigo-400">0%</div>
+                        </div>
+                        <div class="p-2.5 bg-slate-900 rounded-xl border border-slate-800">
+                            <div class="text-slate-400 text-[10px] mb-1">Emotional Intelligence</div>
+                            <div id="rep-score-eq" class="text-base font-bold text-emerald-400">0%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Analysis & Recommendations -->
+                <div class="space-y-3">
+                    <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Executive Coaching Plan & Action Plan</h3>
+                    <div id="report-coaching-content" class="bg-slate-900 p-4 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-2">
+                        <p>Complete scenarios in the simulator to populate this customized executive coaching roadmap.</p>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        /**
+         * LeadEval AI - Application State & Data Stores
+         */
+        let userApiKey = localStorage.getItem('LEADEVAL_GEMINI_API_KEY') || "";
+
+        // 5 Core Scenarios Definitions
+        const SCENARIOS = [
+            {
+                id: 0,
+                title: "Interpersonal Conflict: Tech Stack Architectural Feud",
+                difficulty: "High Stake",
+                difficultyColor: "rose",
+                context: "Two senior engineers (Dave - Principal Architect, Sarah - Tech Lead) are openly arguing over whether to rewrite the core microservice 48 hours before Friday's crucial enterprise release. Team morale is low and missing the deadline risks a $2M account.",
+                stakeholders: ["Sarah (Tech Lead)", "Dave (Principal Architect)", "VP of Product"],
+                initialPrompt: "Sarah says: 'Dave's legacy refactor is a timebomb and we must delay!' Dave responds: 'Sarah's band-aid solution will crash under peak load on day 1!' Both are looking at you to make an immediate call. How do you intervene and lead this meeting?",
+                suggestions: [
+                    "Call an immediate truce, freeze architectural refactors for launch, and mandate a post-launch spike.",
+                    "Acknowledge both technical concerns, establish clear decision parameters based on risk, and assign Dave to risk mitigation.",
+                    "Pause the shouting, validate both engineers' passion, and ask them to formulate a single compromised hybrid rollout."
+                ]
+            },
+            {
+                id: 1,
+                title: "Underperforming Star Player: Toxic High Performer",
+                difficulty: "Hard",
+                difficultyColor: "amber",
+                context: "Alex is your top backend dev who writes 40% of the codebase, but has recently become dismissive in code reviews, belittling junior developers, and refusing to attend agile standups.",
+                stakeholders: ["Alex (Senior Dev)", "Junior Engineering Team", "HR Director"],
+                initialPrompt: "During a sprint retrospective, Alex rudely interrupts a junior engineer stating: 'This discussion is a complete waste of my time, some of us actually code.' How do you address Alex right now and follow up afterwards?",
+                suggestions: [
+                    "Intervene immediately in the meeting to enforce psychological safety, then schedule a direct 1-on-1 regarding culture.",
+                    "Address Alex privately post-meeting with specific behavioral examples and reiterate team standard expectations.",
+                    "Challenge Alex's tone directly, ask them to rephrase respectfully, and pivot the retrospective back to team goals."
+                ]
+            },
+            {
+                id: 2,
+                title: "Crisis Management: Major Production Outage",
+                difficulty: "Extreme",
+                difficultyColor: "rose",
+                context: "A Tier-1 production outage has brought down customer checkout 30 minutes before an annual board meeting and major investor demo.",
+                stakeholders: ["CTO", "DevOps Incident Lead", "Key Enterprise Clients"],
+                initialPrompt: "Panic is spreading in the Incident Slack channel. The CTO messages you: 'Give me an ETA NOW, should I cancel the investor demo?!' What is your crisis leadership action plan?",
+                suggestions: [
+                    "Institute incident command structure, appoint a clear communication officer, and advise CTO on a contingency demo plan.",
+                    "Focus 100% on stabilization first: isolate recent deployment, communicate transparent status updates every 10 mins.",
+                    "Reassure the team, remove non-essential people from war room, and prepare an honest executive mitigation statement."
+                ]
+            },
+            {
+                id: 3,
+                title: "Restructuring & Team Anxiety",
+                difficulty: "Medium",
+                difficultyColor: "indigo",
+                context: "Executive leadership has mandated a 20% budget realignment. You need to reassign two strategic projects without causing panic or losing key talent.",
+                stakeholders: ["Engineering Team", "Department Head", "Product Management"],
+                initialPrompt: "Rumors of layoffs are circulating near the watercooler. Your lead designer asks you anxiously: 'Are our jobs safe? Should we start updating our resumes?' How do you communicate transparently without breaching executive confidence?",
+                suggestions: [
+                    "Validate the anxiety, share what is known with absolute honesty, and emphasize team focus on key deliverables.",
+                    "Schedule an all-hands Q&A session to clarify business shifts while reinforcing personal commitment to support them.",
+                    "Frame the realignment around strategic business growth opportunities while keeping communication calm and grounded."
+                ]
+            },
+            {
+                id: 4,
+                title: "Ethical Gray Area: Unverified Feature Promises",
+                difficulty: "High Stake",
+                difficultyColor: "rose",
+                context: "A top Sales Director wants you to sign off on a contract promising custom AI security features that your engineering team hasn't scoped yet, just to close the quarter.",
+                stakeholders: ["Sales Director", "Enterprise Client VP", "Lead Security Engineer"],
+                initialPrompt: "The Sales Director pulls you into a room: 'Look, if we don't check this compliance box today, we lose $500k in ARR. Just sign off on the paper, we can build it later!' What is your stance?",
+                suggestions: [
+                    "Refuse unverified sign-off, but collaborate with Sales to offer a phased contractual addendum with realistic milestones.",
+                    "Stand firm on technical integrity, explain the compliance liabilities, and escalate to C-suite if pressured.",
+                    "Propose a emergency 30-minute rapid scoping review with the lead security engineer before any binding commitment."
+                ]
+            }
+        ];
+
+        // Global State Store
+        let state = {
+            currentScenarioIdx: 0,
+            scenarioHistories: SCENARIOS.map(() => []), // Array of message histories for each scenario
+            scenarioCompleted: [false, false, false, false, false],
+            scores: {
+                empathy: 50,
+                decisiveness: 50,
+                clarity: 50,
+                strategic: 50,
+                emotionalIntelligence: 50
+            },
+            overallScore: 50,
+            totalTurns: 0,
+            rqi: 0,
+            latestStrengths: ["Awaiting initial response..."],
+            latestGrowth: ["Awaiting initial response..."],
+            latestAdvice: "Submit your initial strategic decision in the chat interface.",
+            isDictating: false,
+            radarChart: null
+        };
+
+        /**
+         * Initialize App on DOM Loaded
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize Lucide Icons
+            lucide.createIcons();
+
+            // Set default date
+            const now = new Date();
+            document.getElementById('report-date').innerText = now.toLocaleDateString('en-US', { month: 'short', year: 'numeric', day: 'numeric' });
+
+            // Initialize Radar Chart
+            initRadarChart();
+
+            // Load Initial Scenario
+            loadScenario(0);
+
+            // Bind Event Listeners
+            bindEventListeners();
+            
+            // Set saved API key if present
+            if (userApiKey) {
+                document.getElementById('input-api-key').value = userApiKey;
+            }
+        });
+
+        /**
+         * Initialize Chart.js Radar Visual
+         */
+        function initRadarChart() {
+            const ctx = document.getElementById('competencyRadarChart').getContext('2d');
+            state.radarChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Empathy', 'Decisiveness', 'Clarity', 'Strategic', 'Emotional Intelligence'],
+                    datasets: [{
+                        label: 'Leadership Profile',
+                        data: [50, 50, 50, 50, 50],
+                        backgroundColor: 'rgba(14, 165, 233, 0.25)',
+                        borderColor: '#0ea5e9',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#38bdf8',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#38bdf8'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            pointLabels: {
+                                color: '#94a3b8',
+                                font: { size: 10, family: 'Inter', weight: '500' }
+                            },
+                            ticks: {
+                                display: false,
+                                min: 0,
+                                max: 100,
+                                stepSize: 20
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        /**
+         * Bind UI Event Listeners
+         */
+        function bindEventListeners() {
+            // Scenario Select Dropdown
+            document.getElementById('scenario-select').addEventListener('change', (e) => {
+                loadScenario(parseInt(e.target.value));
+            });
+
+            // Send Button & Enter key
+            document.getElementById('btn-send').addEventListener('click', handleUserSendMessage);
+            document.getElementById('user-input').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleUserSendMessage();
+                }
+            });
+
+            // Character Counter
+            document.getElementById('user-input').addEventListener('input', (e) => {
+                const len = e.target.value.length;
+                document.getElementById('char-counter').innerText = `${len} / 1000`;
+            });
+
+            // Dictation Simulation Toggle
+            document.getElementById('btn-dictation').addEventListener('click', toggleDictationSimulation);
+
+            // API Key Modal
+            document.getElementById('btn-api-key').addEventListener('click', () => {
+                document.getElementById('modal-api-key').classList.remove('hidden');
+            });
+            document.getElementById('btn-close-api-modal').addEventListener('click', () => {
+                document.getElementById('modal-api-key').classList.add('hidden');
+            });
+            document.getElementById('btn-save-api-key').addEventListener('click', () => {
+                userApiKey = document.getElementById('input-api-key').value.trim();
+                localStorage.setItem('LEADEVAL_GEMINI_API_KEY', userApiKey);
+                document.getElementById('modal-api-key').classList.add('hidden');
+                showNotification("Gemini API key updated successfully.");
+            });
+
+            // Theme Toggle
+            document.getElementById('btn-theme-toggle').addEventListener('click', toggleTheme);
+
+            // Export Report Modal
+            document.getElementById('btn-export-report').addEventListener('click', openReportModal);
+            document.getElementById('btn-close-report').addEventListener('click', () => {
+                document.getElementById('modal-report').classList.add('hidden');
+            });
+            document.getElementById('btn-print-report').addEventListener('click', () => {
+                window.print();
+            });
+        }
+
+        /**
+         * Load Scenario into UI
+         */
+        function loadScenario(idx) {
+            state.currentScenarioIdx = idx;
+            const scenario = SCENARIOS[idx];
+
+            // Update UI elements
+            document.getElementById('scenario-select').value = idx;
+            document.getElementById('scenario-number-badge').innerText = `Scenario ${idx + 1} of 5`;
+            document.getElementById('scenario-difficulty-badge').innerText = scenario.difficulty;
+            document.getElementById('scenario-title').innerText = scenario.title;
+            document.getElementById('scenario-context').innerText = scenario.context;
+
+            // Nav progress update
+            document.getElementById('nav-progress-text').innerText = `${idx + 1} / 5`;
+            document.getElementById('nav-progress-bar').style.width = `${((idx + 1) / 5) * 100}%`;
+
+            // Stakeholders
+            const stContainer = document.getElementById('stakeholders-container');
+            stContainer.innerHTML = '';
+            scenario.stakeholders.forEach(st => {
+                const pill = document.createElement('span');
+                pill.className = "px-2 py-0.5 text-[11px] rounded-md bg-slate-800 text-slate-300 border border-slate-700/60 font-medium flex items-center gap-1";
+                pill.innerHTML = `<i data-lucide="user" class="w-3 h-3 text-brand-400"></i> ${st}`;
+                stContainer.appendChild(pill);
+            });
+
+            // Suggestions
+            const suggContainer = document.getElementById('suggestion-chips');
+            suggContainer.innerHTML = '';
+            scenario.suggestions.forEach(sug => {
+                const chip = document.createElement('button');
+                chip.type = "button";
+                chip.className = "px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] border border-slate-700/80 whitespace-nowrap transition-colors flex items-center gap-1 flex-shrink-0";
+                chip.innerHTML = `<i data-lucide="corner-down-right" class="w-3 h-3 text-brand-400"></i> "${sug.substring(0, 45)}..."`;
+                chip.onclick = () => {
+                    document.getElementById('user-input').value = sug;
+                    document.getElementById('char-counter').innerText = `${sug.length} / 1000`;
+                };
+                suggContainer.appendChild(chip);
+            });
+
+            lucide.createIcons();
+
+            // Load Chat Messages
+            renderChatStream();
+        }
+
+        /**
+         * Render Chat Stream Messages
+         */
+        function renderChatStream() {
+            const chatStream = document.getElementById('chat-stream');
+            chatStream.innerHTML = '';
+
+            const history = state.scenarioHistories[state.currentScenarioIdx];
+            const currentScenario = SCENARIOS[state.currentScenarioIdx];
+
+            // If empty, add initial AI prompt message
+            if (history.length === 0) {
+                history.push({
+                    role: 'ai',
+                    text: currentScenario.initialPrompt,
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                });
+            }
+
+            history.forEach((msg) => {
+                if (msg.role === 'ai') {
+                    const aiBubble = document.createElement('div');
+                    aiBubble.className = "flex items-start gap-3 max-w-[90%]";
+                    aiBubble.innerHTML = `
+                        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-md">
+                            <i data-lucide="bot" class="w-4 h-4 text-white"></i>
+                        </div>
+                        <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-3.5 text-xs sm:text-sm text-slate-200 shadow-sm leading-relaxed">
+                            <div class="flex items-center justify-between gap-4 mb-1">
+                                <span class="font-bold text-brand-400 text-[11px]">LeadEval Diagnostic AI</span>
+                                <span class="text-[10px] text-slate-500">${msg.timestamp}</span>
+                            </div>
+                            <p>${msg.text}</p>
+                        </div>
+                    `;
+                    chatStream.appendChild(aiBubble);
+                } else if (msg.role === 'user') {
+                    const userBubble = document.createElement('div');
+                    userBubble.className = "flex flex-col items-end gap-1.5 max-w-[85%] ml-auto";
+                    
+                    let evalCalloutHTML = '';
+                    if (msg.evaluation) {
+                        evalCalloutHTML = `
+                            <div class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl p-2.5 mt-1 text-[11px] text-slate-300 space-y-1">
+                                <div class="flex items-center justify-between font-semibold border-b border-slate-800 pb-1">
+                                    <span class="text-brand-400 flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Instant Evaluation Callout</span>
+                                    <span class="text-emerald-400">RQI: ${msg.evaluation.rqi}%</span>
+                                </div>
+                                <p class="text-slate-300 italic font-sans text-[11px]">"${msg.evaluation.summary}"</p>
+                            </div>
+                        `;
+                    }
+
+                    userBubble.innerHTML = `
+                        <div class="bg-gradient-to-r from-brand-600 to-indigo-600 text-white rounded-2xl p-3.5 text-xs sm:text-sm shadow-md leading-relaxed rounded-tr-none">
+                            <div class="flex items-center justify-between gap-4 mb-1 border-b border-white/20 pb-0.5 text-[10px] opacity-80">
+                                <span class="font-bold">Manager Response</span>
+                                <span>${msg.timestamp}</span>
+                            </div>
+                            <p>${msg.text}</p>
+                        </div>
+                        ${evalCalloutHTML}
+                    `;
+                    chatStream.appendChild(userBubble);
+                }
+            });
+
+            lucide.createIcons();
+
+            // Scroll to bottom
+            const container = document.getElementById('chat-stream-container');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        /**
+         * Handle User Message Submission
+         */
+        async function handleUserSendMessage() {
+            const inputEl = document.getElementById('user-input');
+            const text = inputEl.value.trim();
+
+            if (!text) return;
+
+            // Clear input
+            inputEl.value = '';
+            document.getElementById('char-counter').innerText = '0 / 1000';
+
+            const history = state.scenarioHistories[state.currentScenarioIdx];
+            const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            // Push User message
+            const userMsgObj = {
+                role: 'user',
+                text: text,
+                timestamp: timestamp
+            };
+            history.push(userMsgObj);
+            state.totalTurns++;
+
+            // Render updated chat
+            renderChatStream();
+
+            // Show AI Thinking Indicator
+            document.getElementById('ai-loading-indicator').classList.remove('hidden');
+
+            // Trigger AI Leadership Scoring Evaluation
+            const evalResult = await evaluateResponseWithAI(text, SCENARIOS[state.currentScenarioIdx]);
+
+            // Hide Loading
+            document.getElementById('ai-loading-indicator').classList.add('hidden');
+
+            // Attach evaluation callout to user message
+            userMsgObj.evaluation = {
+                rqi: evalResult.rqi,
+                summary: evalResult.actionableAdvice
+            };
+
+            // Push AI Followup/Roleplay Message
+            history.push({
+                role: 'ai',
+                text: evalResult.aiRoleplayResponse,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            });
+
+            // Mark scenario completed
+            state.scenarioCompleted[state.currentScenarioIdx] = true;
+
+            // Update Aggregate Scores
+            updateDashboardScores(evalResult);
+
+            // Re-render chat stream
+            renderChatStream();
+        }
+
+        /**
+         * Real Gemini API Evaluation with Local Smart NLP Fallback Engine
+         */
+        async function evaluateResponseWithAI(userText, scenario) {
+            const systemPrompt = `You are LeadEval AI, an executive leadership assessor. Evaluate the manager's response to this workplace scenario: "${scenario.title}".
+Context: ${scenario.context}
+
+Analyze the user's response across 5 core leadership competencies (0-100 scale):
+1. Empathy & Compassion
+2. Decisiveness
+3. Communication Clarity
+4. Strategic Thinking
+5. Emotional Intelligence
+
+Return strictly JSON format with NO Markdown formatting, containing:
+{
+  "empathy": score,
+  "decisiveness": score,
+  "clarity": score,
+  "strategic": score,
+  "emotionalIntelligence": score,
+  "overallScore": score,
+  "rqi": score,
+  "strengths": ["strength 1", "strength 2"],
+  "growth": ["opportunity 1"],
+  "actionableAdvice": "short advice snippet",
+  "aiRoleplayResponse": "roleplay continuation response as stakeholders",
+  "archetype": "one of: Empathetic Catalyst, Decisive Operator, Strategic Diplomat, Visionary Coach"
+}`;
+
+            if (userApiKey) {
+                try {
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${userApiKey}`;
+                    const payload = {
+                        contents: [{ parts: [{ text: `${systemPrompt}\n\nUser Response: "${userText}"` }] }],
+                        generationConfig: { responseMimeType: "application/json" }
+                    };
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const jsonText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (jsonText) {
+                            const parsed = JSON.parse(jsonText);
+                            return parsed;
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Gemini API call failed, reverting to smart local evaluator:", e);
+                }
+            }
+
+            // SMART LOCAL NLP HEURISTIC EVALUATION FALLBACK
+            return evaluateLocalSmartNLP(userText, scenario);
+        }
+
+        /**
+         * Intelligent Local Smart NLP Fallback Engine
+         */
+        function evaluateLocalSmartNLP(text, scenario) {
+            const lower = text.toLowerCase();
+
+            // Word pattern rules
+            const empathyKeywords = ['understand', 'listen', 'support', 'feel', 'appreciate', '1-on-1', 'perspectives', 'burnout', 'care', 'help', 'passion', 'concern', 'respect'];
+            const decisivenessKeywords = ['decide', 'immediately', 'deadline', 'must', 'action', 'step', 'halt', 'priority', 'direct', 'execute', 'freeze', 'now', 'mandate'];
+            const clarityKeywords = ['clear', 'transparent', 'explain', 'expectations', 'roadmap', 'goals', 'agree', 'summary', 'explicit', 'parameters', 'communicated'];
+            const strategicKeywords = ['long-term', 'root cause', 'system', 'process', 'business', 'client', 'impact', 'risk', 'mitigate', 'future', 'tradeoff', 'contingency'];
+            const eqKeywords = ['calm', 'reflect', 'pause', 'feedback', 'respect', 'trust', 'safety', 'collaborate', 'tone', 'composure', 'bridge'];
+
+            function countMatches(keywords) {
+                return keywords.reduce((acc, kw) => acc + (lower.includes(kw) ? 1 : 0), 0);
+            }
+
+            const empCount = countMatches(empathyKeywords);
+            const decCount = countMatches(decisivenessKeywords);
+            const claCount = countMatches(clarityKeywords);
+            const strCount = countMatches(strategicKeywords);
+            const eqCount = countMatches(eqKeywords);
+
+            const textLen = text.length;
+            const lengthBonus = Math.min(25, Math.floor(textLen / 8));
+
+            const empScore = Math.min(98, Math.max(45, 55 + empCount * 12 + lengthBonus));
+            const decScore = Math.min(98, Math.max(45, 50 + decCount * 14 + lengthBonus));
+            const claScore = Math.min(98, Math.max(45, 58 + claCount * 12 + lengthBonus));
+            const strScore = Math.min(98, Math.max(45, 52 + strCount * 13 + lengthBonus));
+            const eqScore = Math.min(98, Math.max(45, 54 + eqCount * 11 + lengthBonus));
+
+            const overallScore = Math.round((empScore + decScore + claScore + strScore + eqScore) / 5);
+            const rqi = Math.min(99, Math.round(overallScore * 0.95 + (textLen > 100 ? 5 : 0)));
+
+            // Dynamic Archetype Calculation
+            let archetype = "Strategic Diplomat";
+            if (empScore > decScore && empScore > 75) archetype = "Empathetic Catalyst";
+            else if (decScore > empScore && decScore > 75) archetype = "Decisive Operator";
+            else if (strScore > 80) archetype = "Visionary Coach";
+
+            // Strengths and Growth
+            const strengths = [];
+            const growth = [];
+
+            if (empScore >= 70) strengths.push("Strong active listening and human-centric framing");
+            else growth.push("Validate team stress and emotional concerns more explicitly");
+
+            if (decScore >= 70) strengths.push("Decisive action-oriented direction preventing paralysis");
+            else growth.push("Establish firmer timelines and clear single-point ownership");
+
+            if (strScore >= 70) strengths.push("High awareness of business impact and risk mitigation");
+            else growth.push("Anchor choices to broader strategic goals and client impact");
+
+            if (strengths.length === 0) strengths.push("Direct participation in complex leadership dialogue");
+            if (growth.length === 0) growth.push("Refine clarity in defining success metrics");
+
+            // Roleplay response generation
+            let roleplay = "";
+            if (scenario.id === 0) {
+                roleplay = "Sarah takes a deep breath: 'Fair enough. I can agree to hold off on the refactor if Dave commits to code-freezing feature changes.' Dave nods: 'Agreed. Let's focus on passing load testing for Friday.'";
+            } else if (scenario.id === 1) {
+                roleplay = "Alex looks down briefly: 'I didn't realize it came across that harshly. I'll tone down my feedback in reviews.' The team atmosphere noticeably relaxes.";
+            } else if (scenario.id === 2) {
+                roleplay = "The CTO replies in Slack: 'Copy that. I will inform the board of a 20-minute delay while DevOps isolates the deployment. Keep pushing updates.'";
+            } else if (scenario.id === 3) {
+                roleplay = "The designer nods appreciatively: 'Thank you for giving it to us straight. Having clear project priorities helps alleviate the stress.'";
+            } else {
+                roleplay = "The Sales Director sighs: 'Alright, let's bring in the lead security engineer right now for a quick 20-minute reality check on what we can deliver.'";
+            }
+
+            return {
+                empathy: empScore,
+                decisiveness: decScore,
+                clarity: claScore,
+                strategic: strScore,
+                emotionalIntelligence: eqScore,
+                overallScore: overallScore,
+                rqi: rqi,
+                strengths: strengths,
+                growth: growth,
+                actionableAdvice: `To elevate your response, explicitly link your immediate decision to ${growth[0] || "long-term team trust"}.`,
+                aiRoleplayResponse: roleplay,
+                archetype: archetype
+            };
+        }
+
+        /**
+         * Update Dashboard Analytics with new Evaluation Scores
+         */
+        function updateDashboardScores(evalResult) {
+            // Blended update towards new evaluation
+            state.scores.empathy = Math.round((state.scores.empathy * 0.4) + (evalResult.empathy * 0.6));
+            state.scores.decisiveness = Math.round((state.scores.decisiveness * 0.4) + (evalResult.decisiveness * 0.6));
+            state.scores.clarity = Math.round((state.scores.clarity * 0.4) + (evalResult.clarity * 0.6));
+            state.scores.strategic = Math.round((state.scores.strategic * 0.4) + (evalResult.strategic * 0.6));
+            state.scores.emotionalIntelligence = Math.round((state.scores.emotionalIntelligence * 0.4) + (evalResult.emotionalIntelligence * 0.6));
+
+            state.overallScore = Math.round(
+                (state.scores.empathy + state.scores.decisiveness + state.scores.clarity + state.scores.strategic + state.scores.emotionalIntelligence) / 5
+            );
+            state.rqi = evalResult.rqi;
+
+            // Update Progress Bars
+            updateBar('score-empathy', state.scores.empathy);
+            updateBar('score-decisiveness', state.scores.decisiveness);
+            updateBar('score-clarity', state.scores.clarity);
+            updateBar('score-strategic', state.scores.strategic);
+            updateBar('score-eq', state.scores.emotionalIntelligence);
+
+            // Overall Score Badges
+            document.getElementById('overall-score-badge').innerText = `${state.overallScore} / 100`;
+            document.getElementById('metric-rqi').innerText = `${state.rqi}%`;
+            document.getElementById('metric-turns').innerText = state.totalTurns;
+
+            const completedCount = state.scenarioCompleted.filter(Boolean).length;
+            document.getElementById('metric-completion').innerText = `${completedCount} / 5`;
+
+            // Update Radar Chart
+            if (state.radarChart) {
+                state.radarChart.data.datasets[0].data = [
+                    state.scores.empathy,
+                    state.scores.decisiveness,
+                    state.scores.clarity,
+                    state.scores.strategic,
+                    state.scores.emotionalIntelligence
+                ];
+                state.radarChart.update();
+            }
+
+            // Archetype Update
+            document.getElementById('archetype-title').innerText = evalResult.archetype;
+            document.getElementById('archetype-desc').innerText = getArchetypeDescription(evalResult.archetype);
+
+            // Latest Feedback Cards
+            const strUl = document.getElementById('feedback-strengths');
+            strUl.innerHTML = evalResult.strengths.map(s => `<li>${s}</li>`).join('');
+
+            const grwUl = document.getElementById('feedback-growth');
+            grwUl.innerHTML = evalResult.growth.map(g => `<li>${g}</li>`).join('');
+
+            document.getElementById('feedback-advice').innerText = `"${evalResult.actionableAdvice}"`;
+        }
+
+        function updateBar(idPrefix, val) {
+            document.getElementById(`${idPrefix}-val`).innerText = `${val}%`;
+            document.getElementById(`${idPrefix}-bar`).style.width = `${val}%`;
+        }
+
+        function getArchetypeDescription(type) {
+            switch (type) {
+                case "Empathetic Catalyst":
+                    return "Prioritizes psychological safety, active listening, and team trust while driving collaborative solutions under pressure.";
+                case "Decisive Operator":
+                    return "Excels at swift execution, clear boundaries, and decisive action plans during high-stakes corporate emergencies.";
+                case "Visionary Coach":
+                    return "Focuses on long-term talent empowerment, strategic alignment, and big-picture business transformation.";
+                default:
+                    return "Balances firm decisive direction with high emotional intelligence and multi-stakeholder strategic diplomacy.";
+            }
+        }
+
+        /**
+         * Dictation Simulation
+         */
+        function toggleDictationSimulation() {
+            const micBtn = document.getElementById('btn-dictation');
+            const micIcon = document.getElementById('mic-icon');
+            const inputEl = document.getElementById('user-input');
+
+            if (!state.isDictating) {
+                state.isDictating = true;
+                micBtn.classList.add('text-rose-500', 'mic-active');
+                showNotification("Simulated speech dictation active. Speak now...");
+
+                // Simulated Speech Insertion
+                setTimeout(() => {
+                    inputEl.value = "I am calling an immediate halt to the shouting. We will hold current code deployments, validate customer impact, and make a final call together in 10 minutes.";
+                    document.getElementById('char-counter').innerText = `${inputEl.value.length} / 1000`;
+                    state.isDictating = false;
+                    micBtn.classList.remove('text-rose-500', 'mic-active');
+                }, 2200);
+            }
+        }
+
+        /**
+         * Theme Toggle (Dark/Light)
+         */
+        function toggleTheme() {
+            const html = document.documentElement;
+            const isDark = html.classList.contains('dark');
+
+            if (isDark) {
+                html.classList.remove('dark');
+                html.classList.add('light');
+                document.getElementById('theme-icon-sun').classList.remove('hidden');
+                document.getElementById('theme-icon-moon').classList.add('hidden');
+                document.body.className = "bg-slate-100 text-slate-900 min-h-screen flex flex-col selection:bg-brand-500 selection:text-white";
+            } else {
+                html.classList.remove('light');
+                html.classList.add('dark');
+                document.getElementById('theme-icon-sun').classList.add('hidden');
+                document.getElementById('theme-icon-moon').classList.remove('hidden');
+                document.body.className = "bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-brand-500 selection:text-white";
+            }
+        }
+
+        /**
+         * Open Assessment Report Modal
+         */
+        function openReportModal() {
+            document.getElementById('report-overall-score').innerText = `${state.overallScore} / 100`;
+            document.getElementById('report-archetype-title').innerText = document.getElementById('archetype-title').innerText || "Strategic Diplomat";
+            document.getElementById('report-archetype-desc').innerText = document.getElementById('archetype-desc').innerText;
+
+            const completedCount = state.scenarioCompleted.filter(Boolean).length;
+            document.getElementById('report-scenarios-completed').innerText = `${completedCount} / 5`;
+            document.getElementById('report-rqi').innerText = `${state.rqi}%`;
+            document.getElementById('report-turns').innerText = state.totalTurns;
+
+            document.getElementById('rep-score-empathy').innerText = `${state.scores.empathy}%`;
+            document.getElementById('rep-score-decisiveness').innerText = `${state.scores.decisiveness}%`;
+            document.getElementById('rep-score-clarity').innerText = `${state.scores.clarity}%`;
+            document.getElementById('rep-score-strategic').innerText = `${state.scores.strategic}%`;
+            document.getElementById('rep-score-eq').innerText = `${state.scores.emotionalIntelligence}%`;
+
+            // Populate Action Coaching Content
+            const coachingContainer = document.getElementById('report-coaching-content');
+            coachingContainer.innerHTML = `
+                <p><strong>Primary Strength:</strong> ${document.getElementById('feedback-strengths').innerText.replace(/\n/g, ', ')}</p>
+                <p><strong>Priority Focus Area:</strong> ${document.getElementById('feedback-growth').innerText.replace(/\n/g, ', ')}</p>
+                <p class="pt-2 border-t border-slate-800 text-brand-300"><strong>Action Plan:</strong> ${document.getElementById('feedback-advice').innerText}</p>
+            `;
+
+            document.getElementById('modal-report').classList.remove('hidden');
+        }
+
+        /**
+         * Helper Toast Notification
+         */
+        function showNotification(msg) {
+            const toast = document.createElement('div');
+            toast.className = "fixed bottom-5 right-5 z-50 bg-brand-600 text-white px-4 py-2.5 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2 animate-bounce";
+            toast.innerHTML = `<i data-lucide="info" class="w-4 h-4"></i> ${msg}`;
+            document.body.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
